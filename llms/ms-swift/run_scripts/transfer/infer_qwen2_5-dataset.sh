@@ -1,0 +1,13 @@
+CUDA_VISIBLE_DEVICES=0,1 swift infer \
+    --model_type qwen2_5-7b-instruct \
+    --model_id_or_path /data/LLM/Qwen2.5-7B-Instruct \
+    --result_dir /home/tfshen/pyproject/pcg/llms/ms-swift/result/transfer/Qwen2.5-7B-Instruct \
+    --eval_human False \
+    --eval_ficl False \
+    --eval_udcf False \
+    --enforce_cot False \
+    --enforce_transfer True \
+    --transfer_mode dataset \
+    --transfer_deque_dir /home/tfshen/pyproject/pcg/llms/ms-swift/result/transfer/Qwen2.5-7B-Instruct/deque \
+    --transfer_save_dir /home/tfshen/pyproject/pcg/llms/ms-swift/result/transfer/Qwen2.5-7B-Instruct/save \
+    --val_dataset /home/tfshen/pyproject/pcg/llms/ms-swift/dataset/pcg/processed/add.jsonl

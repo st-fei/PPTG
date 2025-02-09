@@ -1,0 +1,13 @@
+CUDA_VISIBLE_DEVICES=0,1 swift infer \
+    --model_type minicpm-v-v2_6-chat \
+    --model_id_or_path /data/tfshen/llm/minicpm-v \
+    --result_dir /home/tfshen/pyproject/pcg/llms/ms-swift/result/transfer/minicpm-v \
+    --eval_human False \
+    --eval_ficl False \
+    --eval_udcf False \
+    --enforce_cot False \
+    --enforce_transfer True \
+    --transfer_mode dataset \
+    --transfer_deque_dir /home/tfshen/pyproject/pcg/llms/ms-swift/result/transfer/minicpm-v/deque \
+    --transfer_save_dir /home/tfshen/pyproject/pcg/llms/ms-swift/result/transfer/minicpm-v/save \
+    --val_dataset /home/tfshen/pyproject/pcg/llms/ms-swift/dataset/pcg/processed/add.jsonl
