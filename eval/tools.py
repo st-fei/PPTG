@@ -1,7 +1,3 @@
-'''
-2024.9.30 by stf
-一些可复用的工具函数
-'''
 
 import os
 import re
@@ -14,23 +10,19 @@ import matplotlib.pyplot as plt
 
 
 def create_logger(log_path):
-    """
-    将日志输出到日志文件和控制台
-    """
+
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
 
     formatter = logging.Formatter(
         '%(asctime)s - %(levelname)s - %(message)s')
 
-    # 创建一个handler，用于写入日志文件
     file_handler = logging.FileHandler(
         filename=log_path, mode='w')
     file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.INFO)
     logger.addHandler(file_handler)
 
-    # 创建一个handler，用于将日志输出到控制台
     console = logging.StreamHandler()
     console.setLevel(logging.DEBUG)
     console.setFormatter(formatter)
@@ -38,7 +30,6 @@ def create_logger(log_path):
 
     return logger
 
-# 用于加载json数据
 def load_json(data_path):
     try:
         with open(data_path, 'r') as f:
@@ -48,7 +39,6 @@ def load_json(data_path):
         raise FileNotFoundError(f'Fail to load the data file {data_path}, please check if the data file exists')
 
 
-# 移除对话文本中的表情
 def remove_emoji(text):
     emoji_pattern = re.compile("["
         u"\U0001F600-\U0001F64F"  
@@ -69,7 +59,6 @@ def remove_emoji(text):
         "]+", flags=re.UNICODE)
     return emoji_pattern.sub(r'', text)
 
-# 用于清洗文本
 def text_process(text):
     # clean the text data
     text = text.strip().lower()
@@ -77,22 +66,7 @@ def text_process(text):
     text = remove_emoji(text)
     return text.strip()
 
-# 获取ground-truth标题文本
-def get_labels(data_dir, mode='test'):
-    assert mode in ['dev', 'test'], 'mode需设定为dev或test'
-    data_file = os.path.join(data_dir, f'{mode}.json')
-    data = load_json(data_file)
-    # 获得所有匿名用户的列表
-    anonymous_list = list(data.keys())
-    # 创建存储ground-truth的一维列表
-    gth_response = [[]]
-    # 遍历匿名用户信息
-    for anonymous_name in anonymous_list:
-        title = text_process(data[anonymous_name]['target']['title'])
-        gth_response[0].append(title)
-    return gth_response
 
-# 查询当前图像index所对应的图像文件夹
 def query(img_dir, navigation_path, index):
     navigation_data = load_json(navigation_path)
     for idx, detail in navigation_data.items():

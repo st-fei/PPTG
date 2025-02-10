@@ -1,7 +1,3 @@
-'''
-2024.11.11 by stf
-用于建立评估体系
-'''
 
 import os
 import re
@@ -21,18 +17,13 @@ class NDCG_Indiv:
     def __init__(self, cfg):
         self.cfg = cfg
         self.sample_data = load_json(cfg['FILE_PATH']['processed_file'])
-        self.rel_table = [3.2, 2.5, 2.1, 1.5, 0.0, 0.0, 0.0, 0.0, 0.0] # 预定义超参
-        # self.rel_table = [4.0, 3.0, 2.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0] # 均匀幅度下降
-        # self.rel_table = [4.0, 3.0, 1.8, 0.5, 0.0, 0.0, 0.0, 0.0] # 较大梯度下降
+        self.rel_table = [3.2, 2.5, 2.1, 1.5, 0.0, 0.0, 0.0, 0.0, 0.0] # 
+        # self.rel_table = [4.0, 3.0, 2.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0] 
+        # self.rel_table = [4.0, 3.0, 1.8, 0.5, 0.0, 0.0, 0.0, 0.0] 
         self.human_label = self.get_human_eval()
         self.model_list = ['ofa_ft_gen_path#1', 'maria_ft_gen_path#1', 'livebot_ft_gen_path#1', 'mplug-video_z-shot_gen_path#1','mplug-owl3_z-shot_gen_path#1', 'qwen2-vl_z-shot_gen_path#1', 'minicpm-v_z-shot_gen_path#1', 'gpt-4o_z-shot_gen_path#1']
 
     def load_model_res(self, ):
-        '''
-        加载后gen格式:{model_name: {anonymous_name: gen_title}}
-        加载后label格式:{anonymous_name: title}
-        加载后context格式:{anonymous_name: [history_title1, history_title2, ...]}
-        '''
         # check
         if os.path.isfile(self.cfg['FILE_PATH']['model_gen_file']) and os.path.isfile(self.cfg['FILE_PATH']['label_path']) and os.path.isfile(self.cfg['FILE_PATH']['context_path']):
             gen = load_json(self.cfg['FILE_PATH']['model_gen_file'])
@@ -50,22 +41,18 @@ class NDCG_Indiv:
         label = {} # store all models label
         context = {} # store all data context
         # ---------------------------------------- # 
-        # 按组遍历采样数据文件，获取所有模型的生成结果
         cnt = 0
         for group_name, group_value in self.sample_data.items():
             for sample_name in group_value:
-                # 此时sample_name为当前anonymous_name
                 if sample_name != 'count':
-                    # 获取标签
                     _label = text_process(raw_data[sample_name]['target']['title'])
                     label[sample_name] = _label
-                    # 获取上下文
+                    
                     context[sample_name] = []
                     history_list = group_value[sample_name]['history']
                     for history_note in history_list:
                         context[sample_name].append(text_process(history_note['title']))
                         
-                    # 遍历所有模型获取结果
                     for model_name, gen_path in self.cfg['GEN_PATH'].items():
                         if gen_path != '' and os.path.isfile(gen_path):
                             with open(gen_path, 'r', encoding='utf-8') as f:
@@ -96,13 +83,7 @@ class NDCG_Indiv:
         return gen, label, context
         
     def calculate_nlg_score(self, gen, label):
-        # 加载后gen格式:{model_name: {anonymous_name: gen_title}}
-        # 加载后label格式:{anonymous_name: title}
-        '''
-        为每个模型计算样例nlg分数
-        只有CIDEr分数需要全局文本
-        nlg_score格式为:{nlg_metric: {anonymous_name: {model_name: nlg_res}}}
-        '''
+
         # check
         if os.path.isfile(self.cfg['FILE_PATH']['I_nlg_score_path']):
             nlg_score = load_json(self.cfg['FILE_PATH']['I_nlg_score_path'])
@@ -142,19 +123,18 @@ class NDCG_Indiv:
         return {anonymous_name: {model_name: rel(i), ...}}
         '''
         
-        # 记录所有模型在不同匿名数据上的平均得分
         avg_human_scores = {}
-        # 记录每个匿名数据的出现次数
+
         data_frequency = {}
 
-        # 遍历每个调查问卷结果
+
         survey_dir = self.cfg['FILE_PATH']['survey_dir']
         for survey_prefix in os.listdir(survey_dir):
             survey_path = os.path.join(survey_dir, survey_prefix)
             survey_data = load_json(survey_path)
             for anonymous_name in survey_data:
                 if anonymous_name not in data_frequency:
-                    data_frequency[anonymous_name] = {'count': 0} # count记录该匿名数据在调查问卷中出现次数
+                    data_frequency[anonymous_name] = {'count': 0} 
                     avg_human_scores[anonymous_name] = {}
                 for rank_prefix in survey_data[anonymous_name]:
                     if rank_prefix != 'tag':
@@ -174,10 +154,9 @@ class NDCG_Indiv:
 
     def stat_survey_info(self):
         '''
-        用于统计问卷组信息
+        survey info
         '''
         group_count = {f'Group_{group_id}': 0 for group_id in range(1, 21)}
-        assert os.path.isdir(self.cfg['FILE_PATH']['survey_dir']), f"填写的问卷收集文件夹:{self.cfg['FILE_PATH']['survey_dir']}不符合要求"
         survey_dir = self.cfg['FILE_PATH']['survey_dir']
         survey_list = os.listdir(survey_dir)
         for survey_file in survey_list:
@@ -193,43 +172,28 @@ class NDCG_Indiv:
         return group_count
 
     def ndcg(self, golden, current, n = -1):
-        '''
-        计算所有样例的ndcg平均分数
-        golden: [[rel1, rel2, ...], ...]
-        current: [[rel1, rel2, ...], ...]
-        golden中的相关性分数会自动sort，只需填入所有相关性分数即可
-        current中的相关性分数按当前评估指标结果进行排序
-        '''
         # log2 discount table
         log2_table = np.log2(np.arange(2, 102)) 
-        # 计算DCG@n
+        # DCG@n
         def dcg_at_n(rel, n):
-            rel = np.asfarray(rel)[:n] # 转numpy float数组，并取前n个值
-            # 实现dcg = Sum[i=1 -> n]{2 ** rel(i) - 1} / log(i + 1)
+            rel = np.asfarray(rel)[:n] 
+            # dcg = Sum[i=1 -> n]{2 ** rel(i) - 1} / log(i + 1)
             dcg = np.sum(np.divide(np.power(2, rel) - 1, log2_table[:rel.shape[0]]))
             return dcg
-        # 共len(current)个样例来计算ndcg分数
+
         ndcgs = []
         for i in range(len(current)):
-            # 如果规定了n，就计算ndcg@n；如果没有，就计算ndcg@len(current[i])
             k = len(current[i]) if n == -1 else n 
-            # 计算idcg@k
+            # idcg@k
             idcg = dcg_at_n(sorted(golden[i], reverse=True), n=k)
-            # 计算dcg@k
+            # dcg@k
             dcg = dcg_at_n(current[i], n=k) 
-            tmp_ndcg = 0 if idcg == 0 else dcg / idcg # 计算当前搜索结果的ndcg@k
+            tmp_ndcg = 0 if idcg == 0 else dcg / idcg 
             ndcgs.append(tmp_ndcg)
         # 计算所有人工评估结果的ndcg平均值
         return 0. if len(ndcgs) == 0 else sum(ndcgs) / (len(ndcgs))
 
     def calculate_ndcg4onemetric(self, model_score: dict, label_score: dict, designation: Optional[list] = None):
-        '''
-        单独为某一个指标计算ndcg分数
-        model_score: {anonymous_name: {model_name: model_res}}
-        label_score: {anonymous_name: {model_name: model_res}}
-        '''
-        # check data num
-        # assert len(model_score) == len(label_score), f'采样指标评估数量:{len(model_score)}与标签数量:{len(label_score)}不相同'
         
         # return data sample's ndcg
         if designation is not None:
@@ -338,7 +302,7 @@ class NDCG_Indiv:
                                 current_score = human_score * (1.15 - level_tree[level]['freq'] * 0.15)
                                 # current_score = human_score 
                             else:
-                                current_score = 0.0 # 禁止模型按照字母排序而混分 
+                                current_score = 0.0 
                             break
                     I_current.append(current_score)
 
@@ -349,11 +313,7 @@ class NDCG_Indiv:
             return self.ndcg(golden=G_golden, current=G_current, n=self.cfg['EVAL']['rank_n'])
 
     def ndcg4metric(self, nlg_score: dict, ficl_score: Optional[Dict] = None, pcg_score: Optional[Dict] = None, designation: Optional[list] = None):
-        '''
-        为每个评估指标计算ndcg分数
-        nlg_score: {nlg_metric: {anonymous_name: {model_name: nlg_res}}}
-        ficl_score: {ficl_metric: {anonymous_name: {model_name: ficl_res}}}
-        '''
+
         metric_ndcg = {}
         # nlg_score {nlg_metric: {anonymous_name: {model_name: nlg_res}}}
         
@@ -391,12 +351,9 @@ class NDCG_Indiv:
         }       
 
     def parse_ficl_file(self, file_path: str):
-        '''
-        解析并提取Emotion、Style、Relevance分数
-        '''
+
         result = {}
-        # 正则表达式匹配 Emotion, Style, Relevance 的分数
-        # TODO 不同模型输出格式有所不同，需要根据模型名调整
+
         emotion_pattern = re.compile(r"Emotion(?: similarity)?:\s*([\d.]+)")
         style_pattern = re.compile(r"(?:Language )?Style(?: similarity)?:\s*([\d.]+)")
         relevance_pattern = re.compile(r"(?:Content )?Relevance(?: similarity)?:\s*([\d.]+)")
@@ -406,16 +363,15 @@ class NDCG_Indiv:
             if anonymous_name not in result:
                 result[anonymous_name] = {}
             for model_name, eval_response in rater_data.items():
-                # 初始化
+    
                 emotion_score = None
                 style_score = None
                 relevance_score = None
-                # 正则表达式匹配
+
                 emotion_match = emotion_pattern.search(eval_response)
                 style_match = style_pattern.search(eval_response)
                 relevance_match = relevance_pattern.search(eval_response)
-                # 提取
-                # 如果找到匹配项则提取分数并清理字符串
+
                 if emotion_match:
                     try:
                         emotion_score = float(emotion_match.group(1).strip('.'))
@@ -518,9 +474,7 @@ class NDCG_Indiv:
 
 
     def parse_udcf_args(self, udcf_name):
-        '''
-        解析udcf参数
-        '''
+
         # back to forward parse
         if not udcf_name.endswith('.json'):
             raise ValueError(f'udcf name: {udcf_name} does not meet json-format requirement')
@@ -546,7 +500,6 @@ class NDCG_Indiv:
         file_data = load_json(file_path)
         extracted_data = {}
         for key, value in file_data.items():
-            # 使用正则表达式提取 Rankings 和 Reasons
             rankings = re.search(r"Rankings: (.*?), Reasons:", value, re.DOTALL)
             reasons = re.search(r"Reasons:(.*)", value, re.DOTALL)
             if rankings and reasons:
@@ -573,18 +526,18 @@ class NDCG_Indiv:
         def parse_ranking(ranking_str):
             ranking_str = ranking_str.strip()
             split_ranking = re.split(r"( > |= )", ranking_str)
-            # 初始化变量
+
             order = []
             current_group = []
             
-            # 遍历分割后的元素
+
             for item in split_ranking:
                 item = item.strip()
-                if item == ">":  # 遇到 `>` 表示新分组
+                if item == ">":  
                     if current_group:
                         order.append(current_group)
                         current_group = []
-                elif item == "=":  # 遇到 `=` 表示同一分组
+                elif item == "=":  
                     continue
                 else:
                     current_group.append(item)
@@ -713,7 +666,6 @@ class NDCG_Indiv:
                 beta = 0.15
                 control_factor = 0.0
         
-                # 生成内容与历史重复但标签与历史并不重复，则施加惩罚
                 if bleu_in_gen_context >= punish_threshold and bleu_in_label_context < nlg_threshold:
                     control_factor = - 0.15
                     nlg_sum = (alpha + control_factor) * bleu_in_gen_label - (beta - control_factor) * bleu_in_gen_context
